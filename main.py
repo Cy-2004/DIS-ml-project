@@ -63,37 +63,62 @@ print(df.groupby(['Tumor Type', 'Gender']).size().unstack(fill_value=0))
 
 print("Missing values per column:\n", df.isnull().sum(), "\n")
 
+# Feature correlation
+# corr_matrix = df.corr()
+# corr = corr_matrix["Tumor Type"].sort_values(ascending=False)
+# print(corr)
+
 # Split data into features and label
-X = df.drop(columns=["Tumor_Type"])
-y = df["Tumor_Type"]
+X = df.drop(columns=["Tumor Type"])
+y = df["Tumor Type"]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
 # Encode categorical variables
 categorical_cols = ['Location', 'Grade', 'Gender']
 
+encoders = {}
 for col in categorical_cols:
     le = LabelEncoder()
     X_train[col] = le.fit_transform(X_train[col])
     X_test[col] = le.transform(X_test[col])
+    encoders[col] = le
 
+# Encode label
 ley = LabelEncoder()
-y_train = ley.fit_transform(y_train)
-y_test = ley.transform(y_test)
+y_train_enc = ley.fit_transform(y_train)
+y_test_enc = ley.transform(y_test)
 
 # Scale numerical variables
 numerical_cols = ['Size (cm)', 'Patient Age']
+
 for col in numerical_cols:
     scaler = MinMaxScaler()
-    X_train[col] = scaler.fit_transform(X_train[col])
-    X_test[col] = scaler.transform(X_test[col])
+    X_train[col] = scaler.fit_transform(X_train[[col]])
+    X_test[col] = scaler.transform(X_test[[col]])
 
-# Random Forest model
-model = RandomForestClassifier(random_state=42)
-model.fit(X_train, y_train)
+# Train Random Forest
+random_forest = RandomForestClassifier(random_state=42)
+random_forest.fit(X_train, y_train_enc)
 
+# Evaluate
+print("Accuracy:", random_forest.score(X_test, y_test_enc))
 
-# Which features most important using correlation
-# corr_matrix = df.corr()
-# corr = corr_matrix["Tumor Type"].sort_values(ascending=False)
-# print(corr)
+# Cross-validation
+scores = cross_val_score(RandomForestClassifier(random_state=42), X_train, y_train_enc, cv=5)
+
+print("CV mean:", scores.mean())
+print("CV std:", scores.std())
+
+# Feature correlation
+corr_matrix = df.corr()
+corr = corr_matrix["Tumor Type"].sort_values(ascending=False)
+print(corr)
+
+# Predictions
+y_pred_enc = random_forest.predict(X_test)
+y_pred = ley.inverse_transform(y_pred_enc)
+y_actual = ley.inverse_transform(y_test_enc)
+
+print("Decoded predictions:", y_pred[:20])
+print("Decoded actual:", y_actual[:20])
