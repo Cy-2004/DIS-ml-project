@@ -3,46 +3,97 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+from sklearn.feature_selection import SelectKBest
+from sklearn.feature_selection import chi2
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import OneHotEncoder
+
 df = pd.read_csv('brain_tumor_dataset.csv')
+
+# plt.figure(figsize=(10,6))
+# sns.countplot(data=df, x='Tumor Type', hue='Gender', order=df['Tumor Type'].value_counts().index)
+# plt.title('Most Common Tumor Types by Gender', fontsize=14)
+# plt.xlabel('Tumor Type')
+# plt.ylabel('Count')
+# plt.xticks(rotation=45)
+# plt.legend(title='Gender')
+# plt.tight_layout()
+# plt.show()
+
+# plt.figure(figsize=(10,6))
+# sns.countplot(data=df, x='Tumor Type', order=df['Tumor Type'].value_counts().index, color='skyblue')
+# plt.title('Distribution of Tumor Types (All Patients)', fontsize=14)
+# plt.xlabel('Tumor Type')
+# plt.ylabel('Count')
+# plt.xticks(rotation=45)
+# plt.tight_layout()
+# plt.show()
+
+# Compute average tumor size per tumor type
+avg_size = df.groupby('Tumor Type')['Size (cm)'].mean().sort_values(ascending=False)
+
+# plt.figure(figsize=(10,6))
+# sns.barplot(x=avg_size.index, y=avg_size.values, palette='coolwarm')
+# plt.title('Average Tumor Size by Tumor Type', fontsize=14)
+# plt.xlabel('Tumor Type')
+# plt.ylabel('Average Size (cm)')
+# plt.xticks(rotation=45)
+# plt.tight_layout()
+# plt.show()
 
 print(df.head())
 print(df.describe())
 print(df.info())
 
-# most common tumor types for male and female? histogram of all tumor types for everyon
-# histogram of average size of each tumor type
+print("Average size per tumor type:")
+print(avg_size)
 
-plt.figure(figsize=(10,6))
-sns.countplot(data=df, x='Tumor Type', hue='Gender', 
-              order=df['Tumor Type'].value_counts().index)
-plt.title('Most Common Tumor Types by Gender', fontsize=14)
-plt.xlabel('Tumor Type')
-plt.ylabel('Count')
-plt.xticks(rotation=45)
-plt.legend(title='Gender')
-plt.tight_layout()
-plt.show()
+print("\nTumor counts:")
+print(df['Tumor Type'].value_counts())
 
-plt.figure(figsize=(10,6))
-sns.countplot(data=df, x='Tumor Type', 
-              order=df['Tumor Type'].value_counts().index, 
-              color='skyblue')
+print("\nTumor counts by gender:")
+print(df.groupby(['Tumor Type', 'Gender']).size().unstack(fill_value=0))
 
-plt.title('Distribution of Tumor Types (All Patients)', fontsize=14)
-plt.xlabel('Tumor Type')
-plt.ylabel('Count')
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+print("Missing values per column:\n", df.isnull().sum(), "\n")
 
-# Compute average tumor size per tumor type
-avg_size = df.groupby('Tumor Type')['Size (cm)'].mean().sort_values(ascending=False)
+# Split data into features and label
+X = df.drop(columns=["Tumor_Type"])
+y = df["Tumor_Type"]
 
-plt.figure(figsize=(10,6))
-sns.barplot(x=avg_size.index, y=avg_size.values, palette='coolwarm')
-plt.title('Average Tumor Size by Tumor Type', fontsize=14)
-plt.xlabel('Tumor Type')
-plt.ylabel('Average Size (cm)')
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+# Encode categorical variables
+categorical_cols = ['Location', 'Grade', 'Gender']
+
+for col in categorical_cols:
+    le = LabelEncoder()
+    X_train[col] = le.fit_transform(X_train[col])
+    X_test[col] = le.transform(X_test[col])
+
+ley = LabelEncoder()
+y_train = ley.fit_transform(y_train)
+y_test = ley.transform(y_test)
+
+# Scale numerical variables
+numerical_cols = ['Size (cm)', 'Patient Age']
+for col in numerical_cols:
+    scaler = MinMaxScaler()
+    X_train[col] = scaler.fit_transform(X_train[col])
+    X_test[col] = scaler.transform(X_test[col])
+
+# Random Forest model
+model = RandomForestClassifier(random_state=42)
+model.fit(X_train, y_train)
+
+
+# Which features most important using correlation
+# corr_matrix = df.corr()
+# corr = corr_matrix["Tumor Type"].sort_values(ascending=False)
+# print(corr)
